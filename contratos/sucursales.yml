@@ -1,0 +1,58 @@
+# Contrato de datos: Sucursales (referencia)
+#
+# Plantilla base. Reemplaza cada "<completar>" con lo que encuentres al explorar
+# la fuente en Bronze. Cuando el contrato esté listo, puedes borrar estos comentarios.
+# El contrato tiene que coincidir con tu código: los tipos de Silver y las
+# expectativas del pipeline son los que declaras aquí.
+
+fuente: sucursales
+version: 1
+ultima_actualizacion: "<AAAA-MM-DD>"
+responsable: "<completar>"            # área de ElectroCasa dueña del dato
+llegada: "<completar>"                # formato y ruta del volume donde aterriza el archivo
+metodo_ingesta: "<completar>"         # Auto Loader, COPY INTO o lectura batch, y por qué
+frecuencia_esperada: "<completar>"    # tabla de referencia: ¿cada cuánto cambia?
+tabla_bronze: "<catalogo>.bronze.<completar>"
+tabla_silver: "<catalogo>.silver.<completar>"
+llave: "<completar>"
+
+columnas:
+  # Una entrada por columna, con el tipo que va a tener en Silver.
+  # "regla" es opcional: úsala cuando la columna tenga una restricción propia.
+  - nombre: sucursal_id
+    tipo: "<completar>"
+    nulo: "<true | false>"
+  - nombre: nombre_sucursal
+    tipo: "<completar>"
+    nulo: "<true | false>"
+  - nombre: distrito
+    tipo: "<completar>"
+    nulo: "<true | false>"
+  - nombre: ciudad
+    tipo: "<completar>"
+    nulo: "<true | false>"
+  - nombre: region
+    tipo: "<completar>"
+    nulo: "<true | false>"
+  - nombre: fecha_apertura
+    tipo: "<completar>"
+    nulo: "<true | false>"
+
+reglas_de_calidad:
+  # Una entrada por expectativa del pipeline. Política: warn, drop o fail.
+  - nombre: "<completar>"
+    condicion: "<completar>"
+    politica: "<warn | drop | fail>"
+    destino_rechazos: "<completar>"   # tabla o log donde se consultan los rechazos
+    justificacion: "<completar>"      # por qué esa política para este dato
+
+transformaciones_silver:
+  # Normalizaciones que aplicas antes de escribir en Silver.
+  - "<completar>"
+
+problemas_conocidos:
+  # Lo que encontraste al explorar Bronze, con un ejemplo real y cuántas filas afecta.
+  - problema: "<completar>"
+    ejemplo: "<completar>"
+    filas_afectadas: "<completar>"
+    tratamiento: "<completar>"        # qué regla o transformación lo resuelve

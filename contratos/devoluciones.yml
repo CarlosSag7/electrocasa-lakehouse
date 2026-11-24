@@ -1,0 +1,71 @@
+# Contrato de datos: Devoluciones
+#
+# Plantilla base. Reemplaza cada "<completar>" con lo que encuentres al explorar
+# la fuente en Bronze. Cuando el contrato esté listo, puedes borrar estos comentarios.
+# El contrato tiene que coincidir con tu código: los tipos de Silver y las
+# expectativas del pipeline son los que declaras aquí.
+
+fuente: devoluciones
+version: 1
+ultima_actualizacion: "<AAAA-MM-DD>"
+responsable: "<completar>"            # área de ElectroCasa dueña del dato
+llegada: "<completar>"                # formato y ruta del volume donde aterrizan los archivos
+metodo_ingesta: "<completar>"         # Auto Loader o COPY INTO, y por qué
+frecuencia_esperada: "<completar>"
+tabla_bronze: "<catalogo>.bronze.<completar>"
+tabla_silver: "<catalogo>.silver.<completar>"
+llave: "<completar>"
+depende_de:
+  - fuente: ventas
+    columna: venta_id                 # la devolución referencia la venta de origen
+
+columnas:
+  # Una entrada por columna, con el tipo que va a tener en Silver.
+  # "regla" es opcional: úsala cuando la columna tenga una restricción propia.
+  - nombre: devolucion_id
+    tipo: "<completar>"
+    nulo: "<true | false>"
+  - nombre: venta_id
+    tipo: "<completar>"
+    nulo: "<true | false>"
+    regla: "<completar>"              # ¿qué haces si la venta no existe?
+  - nombre: sucursal_id
+    tipo: "<completar>"
+    nulo: "<true | false>"
+  - nombre: producto_id
+    tipo: "<completar>"
+    nulo: "<true | false>"
+  - nombre: motivo
+    tipo: "<completar>"
+    nulo: "<true | false>"
+  - nombre: monto_reembolso
+    tipo: "<completar>"
+    nulo: "<true | false>"
+    regla: "<completar>"
+  - nombre: fecha_devolucion
+    tipo: "<completar>"
+    nulo: "<true | false>"
+
+reglas_de_calidad:
+  # Una entrada por expectativa del pipeline. Política: warn, drop o fail.
+  - nombre: reembolso_valido
+    condicion: "<completar>"          # no negativo y no mayor que el monto de la venta de origen
+    politica: "<warn | drop | fail>"
+    destino_rechazos: "<completar>"   # tabla o log donde se consultan los rechazos
+    justificacion: "<completar>"      # por qué esa política para este dato
+  - nombre: "<completar>"
+    condicion: "<completar>"
+    politica: "<warn | drop | fail>"
+    destino_rechazos: "<completar>"
+    justificacion: "<completar>"
+
+transformaciones_silver:
+  # Normalizaciones y deduplicación que aplicas antes de escribir en Silver.
+  - "<completar>"
+
+problemas_conocidos:
+  # Lo que encontraste al explorar Bronze, con un ejemplo real y cuántas filas afecta.
+  - problema: "<completar>"
+    ejemplo: "<completar>"
+    filas_afectadas: "<completar>"
+    tratamiento: "<completar>"        # qué regla o transformación lo resuelve

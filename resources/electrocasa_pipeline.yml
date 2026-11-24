@@ -1,0 +1,14 @@
+
+resources:
+  pipelines:
+    electrocasa_pipeline:
+      name: electrocasa_pipeline
+
+      catalog: electrocasa_dev
+      schema: bronze
+
+      serverless: true
+
+      libraries:
+        - file:
+            path: ../src/electrocasa/transformations/ventas_bronze.py

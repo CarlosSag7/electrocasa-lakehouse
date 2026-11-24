@@ -1,0 +1,12 @@
+bundle:
+  name: electrocasa_lakehouse
+
+include:
+  - resources/*.yml
+
+targets:
+  dev:
+    mode: development
+    default: true
+    workspace:
+      host: https://adb-7405607912052558.18.azuredatabricks.net

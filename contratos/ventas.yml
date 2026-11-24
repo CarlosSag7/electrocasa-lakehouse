@@ -1,0 +1,267 @@
+
+fuente: ventas
+version: 1
+ultima_actualizacion: "2026-11-24"
+
+responsable: "<PENDIENTE: area responsable del dato>"
+
+llegada: "Archivos CSV con encabezado en /Volumes/electrocasa_dev/default/vol_landing/ventas/"
+
+metodo_ingesta: "Auto Loader mediante Lakeflow Spark Declarative Pipelines"
+
+frecuencia_esperada: "<PENDIENTE: frecuencia de llegada de los lotes>"
+
+tabla_bronze: "electrocasa_dev.bronze.ventas_bronze"
+
+tabla_silver: "<PENDIENTE: nombre definitivo de la tabla Silver>"
+
+llave: "venta_id"
+
+columnas:
+
+  - nombre: venta_id
+    tipo: STRING
+    nulo: false
+    descripcion: "Identificador unico de la venta."
+    llave_primaria: true
+    regla: "No debe ser nulo ni estar duplicado."
+
+  - nombre: sucursal_id
+    tipo: STRING
+    nulo: true
+    descripcion: "Identificador de la sucursal donde se realizo la venta."
+    regla: "Se espera un identificador para ventas de tienda fisica. La ausencia en ecommerce requiere validacion de negocio."
+    valores_observados: "32 registros sin valor: 26 tienda_fisica y 6 ecommerce."
+
+  - nombre: producto_id
+    tipo: STRING
+    nulo: false
+    descripcion: "Identificador del producto vendido."
+    regla: "No debe ser nulo ni estar vacio."
+
+  - nombre: vendedor_id
+    tipo: STRING
+    nulo: true
+    descripcion: "Identificador del vendedor asociado a la venta."
+    regla: "Obligatorio para tienda_fisica. Puede estar vacio para ecommerce."
+    valores_observados: "2056 registros sin valor, todos correspondientes a ecommerce."
+
+  - nombre: cantidad
+    tipo: STRING
+    nulo: false
+    tipo_silver: INTEGER
+    descripcion: "Cantidad de unidades vendidas."
+    regla: "Debe ser un numero entero mayor que cero."
+    valores_observados: "22 registros con cantidad igual a cero."
+
+  - nombre: monto_total
+    tipo: STRING
+    nulo: true
+    tipo_silver: DECIMAL(12,2)
+    descripcion: "Importe total de la venta."
+
+    regla: "Convertir los importes a DECIMAL(12,2), reconociendo el formato decimal estándar y el formato europeo."
+
+    formatos_observados:
+      - formato: "Decimal estandar con punto"
+        ejemplo: "1167.06"
+        tratamiento: "Conversion directa a DECIMAL(12,2)."
+
+      - formato: "Europeo con separador de miles"
+        ejemplo: "1.167,06"
+        registros: 83
+        tratamiento: "Eliminar puntos de miles y reemplazar coma decimal por punto."
+
+      - formato: "Europeo sin separador de miles"
+        ejemplo: "965,91"
+        registros: 9
+        tratamiento: "Reemplazar coma decimal por punto."
+
+    valores_observados:
+      nulos_o_vacios: 58
+      formato_europeo: 92
+      valores_cero: 28
+      valores_negativos: 41
+
+    observacion: "Los 92 valores que no admitian conversion directa fueron convertidos correctamente mediante la normalizacion del formato europeo."
+
+  - nombre: metodo_pago
+    tipo: STRING
+    nulo: false
+    descripcion: "Medio de pago utilizado en la venta."
+
+    valores_observados:
+      - "EFECTIVO"
+      - "EFV"
+      - "Efectivo"
+      - "efectivo"
+      - "PLIN"
+      - "Plin"
+      - "YAPE"
+      - "Yape"
+      - "yape"
+      - "TARJETA"
+      - "tarjeta"
+      - "TC"
+      - "Tarjeta de credito"
+      - "td"
+      - "TRF"
+      - "Transferencia"
+      - "transferencia"
+
+    valores_normalizados:
+      - "EFECTIVO"
+      - "PLIN"
+      - "YAPE"
+      - "TRANSFERENCIA"
+      - "TARJETA_CREDITO"
+      - "TARJETA_DEBITO"
+      - "TARJETA"
+
+    reglas_normalizacion:
+      - origen: ["EFECTIVO", "EFV", "Efectivo", "efectivo"]
+        destino: "EFECTIVO"
+
+      - origen: ["PLIN", "Plin"]
+        destino: "PLIN"
+
+      - origen: ["YAPE", "Yape", "yape"]
+        destino: "YAPE"
+
+      - origen: ["TRF", "Transferencia", "transferencia"]
+        destino: "TRANSFERENCIA"
+
+      - origen: ["TC", "Tarjeta de credito"]
+        destino: "TARJETA_CREDITO"
+
+      - origen: ["td"]
+        destino: "TARJETA_DEBITO"
+
+      - origen: ["TARJETA", "tarjeta"]
+        destino: "TARJETA"
+
+  - nombre: fecha_venta
+    tipo: STRING
+    nulo: false
+    tipo_silver: DATE
+    descripcion: "Fecha en que se realizo la venta."
+    formatos_observados:
+      - formato: "yyyy-MM-dd"
+        registros: 5446
+      - formato: "dd/MM/yyyy"
+        registros: 776
+      - formato: "yyyy-MM-ddTHH:mm:ss"
+        registros: 561
+    regla: "Convertir los formatos reconocidos a DATE."
+
+  - nombre: canal
+    tipo: STRING
+    nulo: false
+    descripcion: "Canal mediante el cual se realizo la venta."
+    valores_observados:
+      - "ecommerce"
+      - "tienda_fisica"
+    regla: "Conservar y validar los dos valores observados."
+
+reglas_de_calidad:
+
+  - nombre: venta_id_unico
+    condicion: "venta_id IS NOT NULL AND venta_id <> ''"
+    politica: "<PENDIENTE: warn | drop | fail>"
+    destino_rechazos: "<PENDIENTE: tabla de cuarentena>"
+    justificacion: "La llave de negocio no puede estar vacia. En el primer lote se verificaron 6783 identificadores distintos y ningun duplicado."
+
+  - nombre: cantidad_positiva
+    condicion: "TRY_CAST(cantidad AS INT) > 0"
+    politica: "<PENDIENTE: warn | drop | fail>"
+    destino_rechazos: "<PENDIENTE: tabla de cuarentena>"
+    justificacion: "Se identificaron 22 registros con cantidad igual a cero."
+
+  - nombre: monto_total_valido
+    condicion: "monto_total convertido a DECIMAL(12,2) y mayor que cero"
+    politica: "<PENDIENTE: warn | drop | fail>"
+    destino_rechazos: "<PENDIENTE: tabla de cuarentena>"
+    justificacion: "Se encontraron 58 importes nulos o vacios, 92 con formato no reconocido por la conversion directa, 28 iguales a cero y 41 negativos."
+
+  - nombre: vendedor_requerido_tienda_fisica
+    condicion: "canal = 'tienda_fisica' implica vendedor_id IS NOT NULL AND vendedor_id <> ''"
+    politica: "<PENDIENTE: warn | drop | fail>"
+    destino_rechazos: "<PENDIENTE: tabla de cuarentena>"
+    justificacion: "En el primer lote los 2056 registros sin vendedor corresponden a ecommerce."
+
+  - nombre: sucursal_requerida_tienda_fisica
+    condicion: "canal = 'tienda_fisica' implica sucursal_id IS NOT NULL AND sucursal_id <> ''"
+    politica: "<PENDIENTE: warn | drop | fail>"
+    destino_rechazos: "<PENDIENTE: tabla de cuarentena>"
+    justificacion: "Se identificaron 26 ventas de tienda_fisica sin sucursal_id."
+
+  - nombre: metodo_pago_normalizado
+    condicion: "metodo_pago debe corresponder a una de las siete categorias normalizadas"
+    politica: "<PENDIENTE: warn | drop | fail>"
+    destino_rechazos: "<PENDIENTE: tabla de cuarentena>"
+    justificacion: "Se observaron 17 variantes originales que deben normalizarse sin perder la distincion entre tarjeta de credito, debito y tarjeta generica."
+
+transformaciones_silver:
+
+  - "Convertir venta_id, sucursal_id, producto_id y vendedor_id a los tipos definidos en el modelo Silver."
+  - "Convertir cantidad de STRING a INTEGER."
+  - "Convertir monto_total a DECIMAL(12,2), considerando los formatos numericos identificados."
+  - "Convertir fecha_venta a DATE mediante reconocimiento de los tres formatos observados."
+  - "Normalizar metodo_pago utilizando las equivalencias documentadas."
+  - "Normalizar espacios en blanco y valores vacios en las columnas de texto."
+  - "Validar que vendedor_id sea obligatorio para tienda_fisica."
+  - "Validar que sucursal_id sea obligatorio para tienda_fisica."
+  - "Aplicar reglas de calidad y separar los registros rechazados en cuarentena."
+  - "Preservar los datos originales en Bronze."
+
+problemas_conocidos:
+
+  - problema: "Importes con formato europeo."
+    ejemplo: "1.167,06 y 965,91"
+    filas_afectadas: 92
+    tratamiento: "Normalizar separadores de miles y decimales antes de convertir a DECIMAL(12,2). Se comprobo la conversion de los 92 registros."
+
+  - problema: "Vendedor ausente en ventas ecommerce."
+    ejemplo: "vendedor_id vacio con canal ecommerce."
+    filas_afectadas: 2056
+    tratamiento: "Permitir vendedor_id nulo para ecommerce. Exigirlo para tienda_fisica."
+
+  - problema: "Sucursal ausente."
+    ejemplo: "sucursal_id vacio en registros de tienda_fisica y ecommerce."
+    filas_afectadas: 32
+    tratamiento: "Exigir sucursal_id para tienda_fisica. Validar la regla de negocio para ecommerce."
+
+  - problema: "Cantidad igual a cero."
+    ejemplo: "cantidad = 0."
+    filas_afectadas: 22
+    tratamiento: "Marcar como registro no valido para Silver y enviar a cuarentena, sujeto a la politica definitiva."
+
+  - problema: "Importes con formato europeo."
+    ejemplo: "1.167,06"
+    filas_afectadas: 92
+    tratamiento: "Validar el patron de formato y convertir a DECIMAL(12,2) antes de aplicar la regla financiera."
+
+  - problema: "Importes nulos o vacios."
+    ejemplo: "monto_total sin valor."
+    filas_afectadas: 58
+    tratamiento: "No reemplazar por cero. Evaluar rechazo y cuarentena."
+
+  - problema: "Importes iguales a cero."
+    ejemplo: "monto_total = 0."
+    filas_afectadas: 28
+    tratamiento: "Validar contra la regla de importe positivo."
+
+  - problema: "Importes negativos."
+    ejemplo: "monto_total = -1969.19"
+    filas_afectadas: 41
+    tratamiento: "Validar si corresponden a ajustes o errores de origen antes de rechazarlos."
+
+  - problema: "Multiples formatos de fecha."
+    ejemplo: "2026-04-16, 16/04/2026, 2026-04-16T10:30:00"
+    filas_afectadas: 1337
+    tratamiento: "Reconocer los tres formatos y convertirlos a DATE."
+
+  - problema: "Multiples variantes de metodo de pago."
+    ejemplo: "EFECTIVO, EFV, efectivo, TC, td, TARJETA."
+    filas_afectadas: 6783
+    tratamiento: "Normalizar a siete categorias conservando la distincion entre credito, debito y tarjeta generica."

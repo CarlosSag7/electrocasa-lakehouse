@@ -1,0 +1,74 @@
+# Contrato de datos: Reseñas de clientes
+#
+# Plantilla base. Reemplaza cada "<completar>" con lo que encuentres al explorar
+# la fuente en Bronze. Cuando el contrato esté listo, puedes borrar estos comentarios.
+# El contrato tiene que coincidir con tu código: los tipos de Silver y las
+# expectativas del pipeline son los que declaras aquí.
+
+fuente: resenas
+version: 1
+ultima_actualizacion: "<AAAA-MM-DD>"
+responsable: "<completar>"            # área de ElectroCasa dueña del dato
+llegada: "<completar>"                # formato y ruta del volume donde aterrizan los archivos
+metodo_ingesta: "<completar>"         # Auto Loader o COPY INTO, y por qué
+frecuencia_esperada: "<completar>"
+tabla_bronze: "<catalogo>.bronze.<completar>"
+tabla_silver: "<catalogo>.silver.<completar>"
+llave: "<completar>"
+
+columnas:
+  # Una entrada por columna, con el tipo que va a tener en Silver.
+  # Para los campos anidados, declara el tipo completo (array<...>, struct<...>, variant).
+  - nombre: resena_id
+    tipo: "<completar>"
+    nulo: "<true | false>"
+  - nombre: producto_id
+    tipo: "<completar>"
+    nulo: "<true | false>"
+    regla: "<completar>"              # ¿qué haces si el producto no existe en el catálogo?
+  - nombre: cliente_id
+    tipo: "<completar>"
+    nulo: "<true | false>"
+  - nombre: calificacion
+    tipo: "<completar>"
+    nulo: "<true | false>"
+    regla: "<completar>"
+  - nombre: comentario
+    tipo: "<completar>"
+    nulo: "<true | false>"
+  - nombre: tags
+    tipo: "<completar>"
+    nulo: "<true | false>"            # ¿nulo y arreglo vacío significan lo mismo?
+  - nombre: respuestas
+    tipo: "<completar>"               # arreglo de objetos con autor, texto y fecha
+    nulo: "<true | false>"
+  - nombre: fecha_resena
+    tipo: "<completar>"
+    nulo: "<true | false>"
+  - nombre: metadata
+    tipo: "<completar>"               # su estructura cambia según el origen (app, web o kiosko)
+    nulo: "<true | false>"
+
+reglas_de_calidad:
+  # Una entrada por expectativa del pipeline. Política: warn, drop o fail.
+  - nombre: calificacion_en_escala
+    condicion: "<completar>"          # calificación entre 1 y 5
+    politica: "<warn | drop | fail>"
+    destino_rechazos: "<completar>"   # tabla o log donde se consultan los rechazos
+    justificacion: "<completar>"      # por qué esa política para este dato
+  - nombre: "<completar>"
+    condicion: "<completar>"
+    politica: "<warn | drop | fail>"
+    destino_rechazos: "<completar>"
+    justificacion: "<completar>"
+
+transformaciones_silver:
+  # Normalizaciones, aplanamiento y deduplicación que aplicas antes de escribir en Silver.
+  - "<completar>"
+
+problemas_conocidos:
+  # Lo que encontraste al explorar Bronze, con un ejemplo real y cuántas filas afecta.
+  - problema: "<completar>"
+    ejemplo: "<completar>"
+    filas_afectadas: "<completar>"
+    tratamiento: "<completar>"        # qué regla o transformación lo resuelve
