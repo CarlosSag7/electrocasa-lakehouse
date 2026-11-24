@@ -13,7 +13,7 @@ frecuencia_esperada: "<PENDIENTE: frecuencia de llegada de los lotes>"
 
 tabla_bronze: "electrocasa_dev.bronze.ventas_bronze"
 
-tabla_silver: "<PENDIENTE: nombre definitivo de la tabla Silver>"
+tabla_silver: "electrocasa_dev.silver.ventas_silver"
 
 llave: "venta_id"
 
@@ -167,51 +167,56 @@ reglas_de_calidad:
 
   - nombre: venta_id_unico
     condicion: "venta_id IS NOT NULL AND venta_id <> ''"
-    politica: "<PENDIENTE: warn | drop | fail>"
-    destino_rechazos: "<PENDIENTE: tabla de cuarentena>"
-    justificacion: "La llave de negocio no puede estar vacia. En el primer lote se verificaron 6783 identificadores distintos y ningun duplicado."
-
+    politica: "drop"
+    destino_rechazos: null
+    justificacion: "La llave de negocio es obligatoria. Se identificaron 118 filas duplicadas exactas por venta_id en los dos lotes. Se conserva una sola fila en Silver y los datos originales permanecen en Bronze."
+  
   - nombre: cantidad_positiva
     condicion: "TRY_CAST(cantidad AS INT) > 0"
-    politica: "<PENDIENTE: warn | drop | fail>"
-    destino_rechazos: "<PENDIENTE: tabla de cuarentena>"
-    justificacion: "Se identificaron 22 registros con cantidad igual a cero."
+    politica: "drop"
+    destino_rechazos: "electrocasa_dev.silver.ventas_rechazadas"
+    justificacion: "En la validación consolidada de los dos lotes se identificaron 55 registros con cantidad inválida. Se conservan en ventas_rechazadas con su motivo correspondiente."
 
   - nombre: monto_total_valido
     condicion: "monto_total convertido a DECIMAL(12,2) y mayor que cero"
-    politica: "<PENDIENTE: warn | drop | fail>"
-    destino_rechazos: "<PENDIENTE: tabla de cuarentena>"
-    justificacion: "Se encontraron 58 importes nulos o vacios, 92 con formato no reconocido por la conversion directa, 28 iguales a cero y 41 negativos."
+    politica: "drop"
+    destino_rechazos: "electrocasa_dev.silver.ventas_rechazadas"
+    justificacion: "En los dos lotes se identificaron 263 registros con importe inválido: 109 nulos, 61 iguales a cero y 93 negativos. Los registros se conservan en la tabla de rechazadas."
+
 
   - nombre: vendedor_requerido_tienda_fisica
     condicion: "canal = 'tienda_fisica' implica vendedor_id IS NOT NULL AND vendedor_id <> ''"
-    politica: "<PENDIENTE: warn | drop | fail>"
-    destino_rechazos: "<PENDIENTE: tabla de cuarentena>"
-    justificacion: "En el primer lote los 2056 registros sin vendedor corresponden a ecommerce."
+    politica: "drop"
+    destino_rechazos: "electrocasa_dev.silver.ventas_rechazadas"
+    justificacion: "El vendedor es obligatorio para ventas de tienda física. En el primer lote se identificaron 2056 registros sin vendedor, todos correspondientes a ecommerce. En la validación consolidada no se encontraron rechazos por vendedor faltante en tienda física."
 
   - nombre: sucursal_requerida_tienda_fisica
     condicion: "canal = 'tienda_fisica' implica sucursal_id IS NOT NULL AND sucursal_id <> ''"
-    politica: "<PENDIENTE: warn | drop | fail>"
-    destino_rechazos: "<PENDIENTE: tabla de cuarentena>"
-    justificacion: "Se identificaron 26 ventas de tienda_fisica sin sucursal_id."
+    politica: "drop"
+    destino_rechazos: "electrocasa_dev.silver.ventas_rechazadas"
+    justificacion: "La sucursal es obligatoria para ventas de tienda física. En la validación consolidada se identificaron 58 registros de tienda_fisica sin sucursal_id; todos fueron rechazados."
 
   - nombre: metodo_pago_normalizado
     condicion: "metodo_pago debe corresponder a una de las siete categorias normalizadas"
-    politica: "<PENDIENTE: warn | drop | fail>"
-    destino_rechazos: "<PENDIENTE: tabla de cuarentena>"
-    justificacion: "Se observaron 17 variantes originales que deben normalizarse sin perder la distincion entre tarjeta de credito, debito y tarjeta generica."
+    politica: "drop"
+    destino_rechazos: "electrocasa_dev.silver.ventas_rechazadas"
+    justificacion: "Se identificaron 17 variantes originales de métodos de pago. Se normalizaron a siete categorías. Los valores no reconocidos se rechazan y conservan su motivo en la tabla de rechazadas."
 
 transformaciones_silver:
 
-  - "Convertir venta_id, sucursal_id, producto_id y vendedor_id a los tipos definidos en el modelo Silver."
+ transformaciones_silver:
+
+  - "Limpiar espacios en blanco y convertir valores vacios en NULL en las columnas de texto."
   - "Convertir cantidad de STRING a INTEGER."
-  - "Convertir monto_total a DECIMAL(12,2), considerando los formatos numericos identificados."
+  - "Convertir monto_total a DECIMAL(12,2), considerando los formatos numericos estandar y europeos."
   - "Convertir fecha_venta a DATE mediante reconocimiento de los tres formatos observados."
   - "Normalizar metodo_pago utilizando las equivalencias documentadas."
-  - "Normalizar espacios en blanco y valores vacios en las columnas de texto."
-  - "Validar que vendedor_id sea obligatorio para tienda_fisica."
-  - "Validar que sucursal_id sea obligatorio para tienda_fisica."
-  - "Aplicar reglas de calidad y separar los registros rechazados en cuarentena."
+  - "Normalizar canal a minusculas."
+  - "Validar que venta_id y producto_id sean obligatorios."
+  - "Validar que cantidad y monto_total sean mayores que cero."
+  - "Validar que vendedor_id y sucursal_id sean obligatorios para tienda_fisica."
+  - "Separar los registros que incumplen las reglas de calidad en ventas_rechazadas, conservando sus motivos."
+  - "Excluir duplicados exactos por venta_id de ventas_silver, conservando una sola fila."
   - "Preservar los datos originales en Bronze."
 
 problemas_conocidos:
@@ -219,7 +224,7 @@ problemas_conocidos:
   - problema: "Importes con formato europeo."
     ejemplo: "1.167,06 y 965,91"
     filas_afectadas: 92
-    tratamiento: "Normalizar separadores de miles y decimales antes de convertir a DECIMAL(12,2). Se comprobo la conversion de los 92 registros."
+    tratamiento: "En el primer lote se identificaron 92 importes con formato europeo. Se normalizaron los separadores de miles y decimales antes de convertir a DECIMAL(12,2)."
 
   - problema: "Vendedor ausente en ventas ecommerce."
     ejemplo: "vendedor_id vacio con canal ecommerce."
@@ -227,41 +232,64 @@ problemas_conocidos:
     tratamiento: "Permitir vendedor_id nulo para ecommerce. Exigirlo para tienda_fisica."
 
   - problema: "Sucursal ausente."
-    ejemplo: "sucursal_id vacio en registros de tienda_fisica y ecommerce."
-    filas_afectadas: 32
-    tratamiento: "Exigir sucursal_id para tienda_fisica. Validar la regla de negocio para ecommerce."
+    ejemplo: "sucursal_id vacio en registros de tienda_fisica."
+    filas_afectadas: 58
+    tratamiento: "En el primer lote se identificaron 2056 registros sin vendedor, todos correspondientes a ecommerce. Se permite vendedor_id nulo para ecommerce y se exige para tienda_fisica."
 
-  - problema: "Cantidad igual a cero."
-    ejemplo: "cantidad = 0."
-    filas_afectadas: 22
-    tratamiento: "Marcar como registro no valido para Silver y enviar a cuarentena, sujeto a la politica definitiva."
+  - problema: "Cantidad inválida."
+    ejemplo: "cantidad nula, no convertible o menor o igual a cero."
+    filas_afectadas: 55
+    tratamiento: "Los 55 registros identificados en la validación consolidada fueron enviados a ventas_rechazadas. Silver conserva únicamente cantidades mayores que cero."
 
-  - problema: "Importes con formato europeo."
-    ejemplo: "1.167,06"
-    filas_afectadas: 92
-    tratamiento: "Validar el patron de formato y convertir a DECIMAL(12,2) antes de aplicar la regla financiera."
 
   - problema: "Importes nulos o vacios."
     ejemplo: "monto_total sin valor."
-    filas_afectadas: 58
-    tratamiento: "No reemplazar por cero. Evaluar rechazo y cuarentena."
+    filas_afectadas: 109
+    tratamiento: "No reemplazar por cero. Los registros fueron enviados a ventas_rechazadas."
 
   - problema: "Importes iguales a cero."
     ejemplo: "monto_total = 0."
-    filas_afectadas: 28
-    tratamiento: "Validar contra la regla de importe positivo."
+    filas_afectadas: 61
+    tratamiento: "Los registros fueron enviados a ventas_rechazadas porque el importe debe ser mayor que cero."
 
   - problema: "Importes negativos."
     ejemplo: "monto_total = -1969.19"
-    filas_afectadas: 41
-    tratamiento: "Validar si corresponden a ajustes o errores de origen antes de rechazarlos."
+    filas_afectadas: 93
+    tratamiento: "Los registros se conservan en Bronze y fueron enviados a ventas_rechazadas. No se consideran ventas válidas en Silver."
 
   - problema: "Multiples formatos de fecha."
     ejemplo: "2026-04-16, 16/04/2026, 2026-04-16T10:30:00"
     filas_afectadas: 1337
-    tratamiento: "Reconocer los tres formatos y convertirlos a DATE."
+    tratamiento: "En el primer lote se identificaron 1337 registros con formatos de fecha distintos. Se reconocen los tres formatos y se convierten a DATE."
 
   - problema: "Multiples variantes de metodo de pago."
     ejemplo: "EFECTIVO, EFV, efectivo, TC, td, TARJETA."
     filas_afectadas: 6783
-    tratamiento: "Normalizar a siete categorias conservando la distincion entre credito, debito y tarjeta generica."
+    tratamiento: "En el primer lote se identificaron 6783 registros con variantes de métodos de pago. Se normalizan a siete categorías, conservando la distinción entre crédito, débito y tarjeta genérica."
+
+  - problema: "Ventas duplicadas por venta_id."
+    ejemplo: "Dos registros con el mismo venta_id y contenido identico."
+    filas_afectadas: 118
+    tratamiento: "Se identificaron 118 filas duplicadas exactas en los dos lotes. Se conserva una sola fila por venta_id en ventas_silver. Los registros originales permanecen en Bronze."
+
+
+resumen_ingesta:
+  - lotes_procesados:
+    - archivo: "ventas_lote_01_2026-05-31.csv"
+      registros: 6783
+    - archivo: "ventas_lote_02_2026-08-31.csv"
+      registros: 6839
+
+  - resultados_bronze:
+    total_registros: 13622
+
+  - resultados_silver:
+    ventas_validas: 13132
+    registros_rechazados: 372
+    filas_duplicadas_excluidas: 118
+    duplicados_restantes: 0
+
+  - validacion:
+    clasificacion_completa: true
+    deduplicacion_verificada: true
+    segunda_ejecucion_sin_nuevos_duplicados: true
