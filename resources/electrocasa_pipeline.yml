@@ -4,7 +4,7 @@ resources:
     electrocasa_pipeline:
       name: electrocasa_pipeline
 
-      catalog: electrocasa_dev
+      catalog: ${var.catalog}
       schema: bronze
 
       serverless: true

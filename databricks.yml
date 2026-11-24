@@ -1,6 +1,11 @@
 bundle:
   name: electrocasa_lakehouse
 
+variables:
+  catalog:
+    description: Catalogo de Unity Catalog para cada entorno
+    default: electrocasa_dev
+
 include:
   - resources/*.yml
 
@@ -10,3 +15,13 @@ targets:
     default: true
     workspace:
       host: https://adb-7405607912052558.18.azuredatabricks.net
+    variables:
+      catalog: electrocasa_dev
+
+  prod:
+    mode: production
+    workspace:
+      host: https://adb-7405607912052558.18.azuredatabricks.net
+      root_path: /Workspace/Users/carlos.sagastegui@alumnos.viu.es/.bundle/${bundle.name}/${bundle.target}
+    variables:
+      catalog: electrocasa_prod
