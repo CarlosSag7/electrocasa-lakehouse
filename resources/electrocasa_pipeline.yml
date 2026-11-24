@@ -15,3 +15,6 @@ resources:
 
         - file:
             path: ../src/electrocasa/transformations/ventas_silver.py
+        
+        - file:
+            path: ../src/electrocasa/transformations/catalogo_silver.py

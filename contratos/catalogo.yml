@@ -1,67 +1,169 @@
-# Contrato de datos: Catálogo de productos
-#
-# Plantilla base. Reemplaza cada "<completar>" con lo que encuentres al explorar
-# la fuente en Bronze. Cuando el contrato esté listo, puedes borrar estos comentarios.
-# El contrato tiene que coincidir con tu código: los tipos de Silver y las
-# expectativas del pipeline son los que declaras aquí.
 
 fuente: catalogo
 version: 1
-ultima_actualizacion: "<AAAA-MM-DD>"
-responsable: "<completar>"            # área de ElectroCasa dueña del dato
-llegada: "<completar>"                # formato y ruta del volume donde aterrizan los archivos
-metodo_ingesta: "<completar>"         # Auto Loader o COPY INTO, y por qué
-frecuencia_esperada: "<completar>"
-tipo_entrega: "<completar>"           # ¿cada archivo trae solo cambios o el catálogo completo?
-tabla_bronze: "<catalogo>.bronze.<completar>"
-tabla_silver: "<catalogo>.silver.<completar>"
-llave: "<completar>"
-historizacion: "<completar>"          # ¿necesitas conservar el precio anterior? ¿cómo tratas los descontinuados?
+ultima_actualizacion: "2026-11-24"
+
+responsable: "<PENDIENTE: area responsable del dato>"
+
+llegada: "Archivos JSON multilínea en /Volumes/electrocasa_dev/default/vol_landing/productos/"
+
+metodo_ingesta: "COPY INTO con formato JSON multilínea. Se utiliza para cargar snapshots completos e independientes, con control de archivos ya procesados."
+
+frecuencia_esperada: "<PENDIENTE: frecuencia de llegada de los snapshots>"
+
+tipo_entrega: "Snapshots completos del catálogo de productos, no entregas incrementales."
+
+tabla_bronze: "electrocasa_dev.bronze.catalogo_bronze"
+tabla_silver: "electrocasa_dev.silver.catalogo_silver"
+
+llave: "producto_id + fecha_snapshot"
+
+historizacion: "Conservar cada snapshot con su fecha. Mantener los productos descontinuados como registros históricos y preservar la evolución de sus atributos y precios."
+ 
+
 
 columnas:
-  # Una entrada por columna, con el tipo que va a tener en Silver.
-  # "regla" es opcional: úsala cuando la columna tenga una restricción propia.
   - nombre: producto_id
-    tipo: "<completar>"
-    nulo: "<true | false>"
+    tipo: STRING
+    nulo: false
+
   - nombre: nombre_producto
-    tipo: "<completar>"
-    nulo: "<true | false>"
+    tipo: STRING
+    nulo: false
+
   - nombre: categoria
-    tipo: "<completar>"
-    nulo: "<true | false>"
-    valores_permitidos: ["<completar>"]   # las categorías después de estandarizar
+    tipo: STRING
+    nulo: false
+    valores_permitidos:
+      - "Climatización"
+      - "Cocina"
+      - "Electrónica"
+      - "Entretenimiento"
+      - "Línea blanca"
+
   - nombre: marca
-    tipo: "<completar>"
-    nulo: "<true | false>"
+    tipo: STRING
+    nulo: true
+
   - nombre: precio_lista
-    tipo: "<completar>"
-    nulo: "<true | false>"
-    regla: "<completar>"
+    tipo: DECIMAL(12,2)
+    nulo: false
+    regla: "Precio numérico estrictamente mayor que cero"
+
   - nombre: activo
-    tipo: "<completar>"
-    nulo: "<true | false>"
+    tipo: BOOLEAN
+    nulo: false
+
+  - nombre: fecha_snapshot
+    tipo: DATE
+    nulo: false
+
+  - nombre: archivo_origen
+    tipo: STRING
+    nulo: false
+
 
 reglas_de_calidad:
-  # Una entrada por expectativa del pipeline. Política: warn, drop o fail.
+  - nombre: producto_id_obligatorio
+    condicion: "producto_id IS NOT NULL AND TRIM(producto_id) <> ''"
+    politica: "drop"
+    destino_rechazos: "electrocasa_dev.silver.catalogo_rechazadas"
+    justificacion: "El identificador es indispensable para reconocer y relacionar productos entre snapshots."
+
+  - nombre: nombre_obligatorio
+    condicion: "nombre_producto IS NOT NULL AND TRIM(nombre_producto) <> ''"
+    politica: "drop"
+    destino_rechazos: "electrocasa_dev.silver.catalogo_rechazadas"
+    justificacion: "El nombre permite identificar el producto en los análisis comerciales."
+
+  - nombre: categoria_valida
+    condicion: "categoria IN ('Climatización', 'Cocina', 'Electrónica', 'Entretenimiento', 'Línea blanca')"
+    politica: "drop"
+    destino_rechazos: "electrocasa_dev.silver.catalogo_rechazadas"
+    justificacion: "La categoría debe pertenecer al catálogo estandarizado."
+
   - nombre: precio_valido
-    condicion: "<completar>"          # precio numérico y mayor a 0
-    politica: "<warn | drop | fail>"
-    destino_rechazos: "<completar>"   # tabla o log donde se consultan los rechazos
-    justificacion: "<completar>"      # por qué esa política para este dato
-  - nombre: "<completar>"
-    condicion: "<completar>"
-    politica: "<warn | drop | fail>"
-    destino_rechazos: "<completar>"
-    justificacion: "<completar>"
+    condicion: "precio_lista IS NOT NULL AND precio_lista > 0"
+    politica: "drop"
+    destino_rechazos: "electrocasa_dev.silver.catalogo_rechazadas"
+    justificacion: "Los precios nulos, cero, negativos o no convertibles no deben utilizarse en análisis comerciales."
+
+  - nombre: duplicados_identicos
+    condicion: "Una sola versión por producto_id y fecha_snapshot cuando las filas sean idénticas."
+    politica: "drop"
+    destino_rechazos: "electrocasa_dev.silver.catalogo_rechazadas"
+    justificacion: "Evitar duplicaciones sin perder información de productos."
+
+  - nombre: precios_contradictorios
+    condicion: "Un mismo producto_id presenta diferentes precios dentro del mismo fecha_snapshot."
+    politica: "drop"
+    destino_rechazos: "electrocasa_dev.silver.catalogo_rechazadas"
+    justificacion: "No se puede determinar cuál precio es correcto sin una fuente adicional."
+
+  - nombre: marca_opcional
+    condicion: "marca puede ser NULL."
+    politica: "warn"
+    destino_rechazos: "electrocasa_dev.silver.catalogo_rechazadas"
+    justificacion: "La ausencia de marca no impide identificar ni analizar el producto."
 
 transformaciones_silver:
-  # Normalizaciones y deduplicación que aplicas antes de escribir en Silver.
-  - "<completar>"
+  - "Eliminar espacios al inicio y al final de los campos de texto y convertir cadenas vacías en NULL."
+  - "Normalizar las categorías eliminando diferencias de mayúsculas, minúsculas, acentos y guiones bajos."
+  - "Eliminar el prefijo monetario S/ y normalizar los separadores numéricos antes de convertir precio_lista a DECIMAL(12,2)."
+  - "Rechazar precios nulos, no convertibles, cero o negativos."
+  - "Identificar duplicados idénticos por producto_id y fecha_snapshot y conservar una sola fila."
+  - "Identificar productos con precios contradictorios dentro del mismo snapshot y enviar todas sus versiones a rechazos."
+  - "Conservar los dos snapshots históricos y los productos inactivos."
+
+
 
 problemas_conocidos:
-  # Lo que encontraste al explorar Bronze, con un ejemplo real y cuántas filas afecta.
-  - problema: "<completar>"
-    ejemplo: "<completar>"
-    filas_afectadas: "<completar>"
-    tratamiento: "<completar>"        # qué regla o transformación lo resuelve
+  - problema: "Precios nulos, cero o negativos en marzo"
+    ejemplo: "precio_lista NULL, 0 o valores negativos"
+    filas_afectadas: "43 filas: 12 nulos, 13 ceros y 18 negativos"
+    tratamiento: "Enviar a catalogo_rechazadas."
+
+  - problema: "Precios nulos, cero o negativos en agosto"
+    ejemplo: "precio_lista NULL, 0 o valores negativos"
+    filas_afectadas: "51 filas: 24 nulos, 13 ceros y 14 negativos"
+    tratamiento: "Enviar a catalogo_rechazadas."
+
+  - problema: "Precios con prefijo monetario"
+    ejemplo: "S/ 1,107.43"
+    filas_afectadas: "41 filas en agosto"
+    tratamiento: "Eliminar el prefijo S/ y convertir el importe a DECIMAL(12,2)."
+
+  - problema: "Duplicados con precios contradictorios en marzo"
+    ejemplo: "PRD-01259 con precios 4870.05 y 4638.14"
+    filas_afectadas: "48 filas correspondientes a 24 productos"
+    tratamiento: "Rechazar todas las versiones de los productos conflictivos."
+
+  - problema: "Duplicado idéntico en marzo"
+    ejemplo: "PRD-01793 con dos registros de precio 0"
+    filas_afectadas: "2 filas correspondientes a 1 producto"
+    tratamiento: "Conservar una sola versión en Silver, siempre que supere las reglas de calidad."
+
+  - problema: "Variantes de escritura en categorías"
+    ejemplo: "CLIMATIZACION, Climatización, linea_blanca"
+    filas_afectadas: "17 variantes de texto identificadas"
+    tratamiento: "Normalizar mayúsculas, minúsculas, acentos y guiones bajos."
+
+  - problema: "Marcas ausentes"
+    ejemplo: "marca NULL"
+    filas_afectadas: "46 filas en marzo y 48 en agosto"
+    tratamiento: "Permitir valores nulos y conservar los productos."
+
+  - problema: "Productos descontinuados"
+    ejemplo: "Productos activos en marzo e inactivos en agosto"
+    filas_afectadas: "60 productos inactivos en agosto; 57 tienen ambas versiones válidas en Silver y 3 tienen su versión de marzo rechazada por problemas de precio."
+    tratamiento: "Conservar los 60 productos inactivos en el snapshot de agosto y mantener las versiones rechazadas de marzo en cuarentena."
+
+  - problema: "Nuevos productos en agosto"
+    ejemplo: "Productos cuyo producto_id no aparece en marzo"
+    filas_afectadas: "120 productos nuevos en Bronze; 116 incorporados a Silver y 4 rechazados por precio inválido."
+    tratamiento: "Incorporar a Silver los productos nuevos que cumplen las reglas de calidad y conservar los demás en catalogo_rechazadas."
+
+  - problema: "Productos de marzo rechazados y recuperados en agosto"
+    ejemplo: "Productos existentes en marzo con precio inválido o contradictorio, pero con precio válido en agosto"
+    filas_afectadas: "63 productos: 27 con precio cero o negativo, 24 con precios contradictorios y 12 con precio nulo o no convertible en marzo."
+    tratamiento: "Conservar los registros rechazados de marzo en catalogo_rechazadas e incorporar en Silver la versión válida de agosto."
